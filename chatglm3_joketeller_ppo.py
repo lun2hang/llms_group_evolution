@@ -15,10 +15,16 @@ model = AutoModel.from_pretrained(
     base_model_it,
     trust_remote_code=True).half().cuda()
 model = model.eval()
-response, history = model.chat(tokenizer, "tell me a joke", history=[])
 
-print(response)
+instruct_init = "tell me a joke"
+instruct_continue = ".good,give me another one"
+gen_numer=10
 
+instruct=instruct_init
+for i in range(gen_numer):
+    response, history = model.chat(tokenizer, instruct, history=[])
+    print(response)
+    instruct += response + instruct_continue
 
 #init both A B model as PEFT mode for rl
 
