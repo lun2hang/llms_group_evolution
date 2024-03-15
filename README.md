@@ -1,6 +1,6 @@
 # playchatglm3-6b
 
-gemma mistral对笑话等级的划分输出不稳定，因此多Agents共同学习计划在chatglm作为环境rewards上重启，继续探索多Agents相互SFT学习&分别向环境RL进化的计划不变：
+gemma2b/7b mistral are very unstable in classifing a joke,so the rewards model for Agents is switched to chatglm,the objective is not changed：
 
 1、gemma2 can summarize ibdb reviews,use lenght, as rewards,to guide the model to generate shorter output
 
