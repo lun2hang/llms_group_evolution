@@ -13,7 +13,7 @@ base_model_it = "/DATA/jupyter/personal/THUDM/chatglm3-6b"
 tokenizer = AutoTokenizer.from_pretrained(base_model_it, trust_remote_code=True)
 model = AutoModel.from_pretrained(
     base_model_it,
-    trust_remote_code=True).quantize(4).cuda()
+    trust_remote_code=True).half().cuda()
 model = model.eval()
 response, history = model.chat(tokenizer, "tell me a joke", history=[])
 
