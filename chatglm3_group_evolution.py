@@ -5,10 +5,6 @@ import accelerate
 
 base_model_it = "/DATA/jupyter/personal/THUDM/chatglm3-6b"
 
-#init UI or a third part LLM API as a reward model to score a joke 
-
-
-
 #test chatglm3 function
 tokenizer = AutoTokenizer.from_pretrained(base_model_it, trust_remote_code=True)
 model = AutoModel.from_pretrained(
@@ -25,18 +21,19 @@ for i in range(gen_numer):
     response, history = model.chat(tokenizer, instruct, history=[])
     print(response)
     instruct += response + instruct_continue
+#init a reward model as environment to score a response
 
 #init both A B model as PEFT mode for rl
 
-#outer loop
+#outer loop for epoch
 
-#inner RL loop
+#inner loop for rl and sft
 
 #load all models seperatly
 
-#all models generate a joke seperatly,using a different random seed
+#all models generate a response seperatly,using a different random seed
 
-#reward model give all the jokes a score seperatly
+#reward model give all the responses a score seperatly
 
 #both model A B run a PPO step,and save the generation as positive sample if reward is bigger than threshhold
 
