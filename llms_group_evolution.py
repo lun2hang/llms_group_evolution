@@ -12,7 +12,7 @@ for i in num_evolution
             dump positive sample to llms_positive_sample[j]
         for j in num_llms
             train_sft(llms[j],llms_positive_sample[!=j])        
-    replace the Bottom N llms whith a dupliation of the Top M llms
+    replace the Bottom N llms with dupliations of the Top M llms
 '''
 
 
