@@ -3,50 +3,63 @@ import torch
 import bitsandbytes
 import accelerate
 
-base_model_it = "/DATA/jupyter/personal/THUDM/chatglm3-6b"
+'''
+group evolution fake code:
+for i in num_evolution
+    for i in num_epoch
+        for j in num_llms
+            train_ppo(llms[j])
+            dump positive sample to llms_positive_sample[j]
+        for j in num_llms
+            train_sft(llms[j],llms_positive_sample[!=j])        
+    replace the Bottom N llms whith a dupliation of the Top M llms
+'''
 
-#test chatglm3 function
-tokenizer = AutoTokenizer.from_pretrained(base_model_it, trust_remote_code=True)
-model = AutoModel.from_pretrained(
-    base_model_it,
-    trust_remote_code=True).half().cuda()
-model = model.eval()
 
-instruct_init = "tell me a joke"
-instruct_continue = ".good,give me another one"
-gen_numer=10
 
-instruct=instruct_init
-for i in range(gen_numer):
-    response, history = model.chat(tokenizer, instruct, history=[])
-    print(response)
-    instruct += response + instruct_continue
-#init a reward model as environment to score a response
 
-#init both A B model as PEFT mode for rl
+#init a reward model(bert scentiment classifier) as environment to score a response
 
-#outer loop for epoch
+#init base model
 
-#inner loop for rl and sft
+#loop for evolution start
 
-#load all models seperatly
+#loop for epoch start
 
-#all models generate a response seperatly,using a different random seed
+#inner loop for rl start
 
-#reward model give all the responses a score seperatly
+#PPO train: here we use a sequnential ppo training to save GPU memory
 
-#both model A B run a PPO step,and save the generation as positive sample if reward is bigger than threshhold
+#init the peft model with different adaptor for specific llms
 
-#inner rl loop end
+#model[i] generate a response ,using a randomly sampled query
+
+#reward model give the responses a score
+
+#run a PPO step,and save the generation as positive sample if reward is bigger than threshhold
 
 #model save checkpoint
 #evaluate with reward model
 
-#A model sfted by positive sample from B, vice versa
+#ppo train next llms
+
+#inner rl loop end
+
+#inner sft loop start
+
+#A model sfted by positive sample from all other models, vice versa
 
 #model save checkpoint
 #eval with reward model
 
-#end outer loop
+#inner sft loop end
+
+
+
+#loop for epoch end
+
+#drop the bottom models,duplicate the top models
+
+#loop for evolution end
 
 print("end")
