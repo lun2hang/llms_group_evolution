@@ -1,7 +1,4 @@
-from transformers import AutoTokenizer, pipeline, AutoModel
-import torch
-import bitsandbytes
-import accelerate
+#modify a trl demo to orgnize a group of llms to generate more positive comments to a movie,from a bert sentiments classifier
 
 '''
 group evolution fake code:
@@ -14,22 +11,27 @@ for i in num_evolution
             train_sft(llms[j],llms_positive_sample[!=j])        
     replace the Bottom N llms with dupliations of the Top M llms
 '''
+from transformers import AutoTokenizer, pipeline, AutoModel
+import torch
+import bitsandbytes
+import accelerate
 
-
-
+num_evolution = 2
+num_epoch = 2
+num_llms = 2
 
 #init a reward model(bert scentiment classifier) as environment to score a response
 
 #init base model
 
 #loop for evolution start
-
+for i in range(num_evolution):
 #loop for epoch start
-
+    for j in range(num_epoch):
 #inner loop for rl start
-
+        for k in range(num_llms):
 #PPO train: here we use a sequnential ppo training to save GPU memory
-
+            print("RL from feedback from envrionment in evol: %d, epoch: %d, llms: %d " % (i, j, k))
 #init the peft model with different adaptor for specific llms
 
 #model[i] generate a response ,using a randomly sampled query
@@ -42,7 +44,8 @@ for i in num_evolution
 #evaluate with reward model
 
 #ppo train next llms
-
+        for k in range(num_llms):
+            print("SFT from other llm's expericences in evol: %d, epoch: %d, llms: %d " % (i, j, k))
 #inner rl loop end
 
 #inner sft loop start
