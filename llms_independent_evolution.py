@@ -40,10 +40,15 @@ class ScriptArguments:
 
 parser = HfArgumentParser((ScriptArguments, PPOConfig))
 args, ppo_config = parser.parse_args_into_dataclasses()
+# modify local base model, local sentiments analiser, peft dataset...
+
+
 
 # We then define the arguments to pass to the sentiment analysis pipeline.
 # We set `return_all_scores` to True to get the sentiment score for each token.
 sent_kwargs = {"return_all_scores": True, "function_to_apply": "none", "batch_size": 16}
+
+
 
 trl_model_class = AutoModelForCausalLMWithValueHead if not args.use_seq2seq else AutoModelForSeq2SeqLMWithValueHead
 
@@ -69,8 +74,9 @@ def build_dataset(config, query_dataset, input_min_text_length=2, input_max_text
     # load imdb with datasets
     ds = load_dataset(query_dataset, split="train")
     ds = ds.rename_columns({"text": "review"})
+    # only long review is used to train
     ds = ds.filter(lambda x: len(x["review"]) > 200, batched=False)
-
+    # 2~8 head words is used,instant the sampler class
     input_size = LengthSampler(input_min_text_length, input_max_text_length)
 
     def tokenize(sample):
@@ -86,7 +92,7 @@ def build_dataset(config, query_dataset, input_min_text_length=2, input_max_text
 # We retrieve the dataloader by calling the `build_dataset` function.
 dataset = build_dataset(ppo_config, ppo_config.query_dataset)
 
-
+#wwind confused
 def collator(data):
     return {key: [d[key] for d in data] for key in data[0]}
 
@@ -95,6 +101,7 @@ def collator(data):
 set_seed(ppo_config.seed)
 
 # Now let's build the model, the reference model, and the tokenizer.
+# wwind why peft donot need ref_model
 if not args.use_peft:
     ref_model = trl_model_class.from_pretrained(ppo_config.model_name, trust_remote_code=args.trust_remote_code)
     device_map = None
