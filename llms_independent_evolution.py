@@ -18,10 +18,10 @@ from trl import AutoModelForCausalLMWithValueHead, AutoModelForSeq2SeqLMWithValu
 from trl.core import LengthSampler
 from trl.import_utils import is_npu_available, is_xpu_available
 
-base_model_path = ""
+base_model_path = "/DATA/jupyter/personal/gpt2"
 tuned_model_path = ""
-reward_model_path = ""
-datasets_path = ""
+reward_model_path = "/DATA/jupyter/personal/lvwerra/distilbert-imdb"
+datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 
 
 tqdm.pandas()
@@ -41,7 +41,9 @@ class ScriptArguments:
 parser = HfArgumentParser((ScriptArguments, PPOConfig))
 args, ppo_config = parser.parse_args_into_dataclasses()
 # modify local base model, local sentiments analiser, peft dataset...
-
+ppo_config.model_name = base_model_path
+ppo_config.query_dataset = datasets_parquet_path
+ppo_config.reward_model = "sentiment-analysis:" + reward_model_path
 
 
 # We then define the arguments to pass to the sentiment analysis pipeline.
@@ -71,8 +73,15 @@ def build_dataset(config, query_dataset, input_min_text_length=2, input_max_text
     """
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     tokenizer.pad_token = tokenizer.eos_token
-    # load imdb with datasets
-    ds = load_dataset(query_dataset, split="train")
+    # load imdb with datasets.here we load local data in parquet format 
+    # ds = load_dataset(query_dataset, split="train")
+    ds = load_dataset(
+        path = "parquet", 
+        data_dir = query_dataset, 
+        data_files = {'train': 'train-00000-of-00001.parquet', 'test': 'test-00000-of-00001.parquet'},
+        split = "train"
+        )
+
     ds = ds.rename_columns({"text": "review"})
     # only long review is used to train
     ds = ds.filter(lambda x: len(x["review"]) > 200, batched=False)
@@ -92,7 +101,7 @@ def build_dataset(config, query_dataset, input_min_text_length=2, input_max_text
 # We retrieve the dataloader by calling the `build_dataset` function.
 dataset = build_dataset(ppo_config, ppo_config.query_dataset)
 
-#wwind confused
+#confusion solved：遍历字典就是遍历key，遍历值需要遍历 dict.ivalues（），遍历KV：xx.items() here，we trans the list of dicts to a dict of list
 def collator(data):
     return {key: [d[key] for d in data] for key in data[0]}
 
@@ -101,7 +110,7 @@ def collator(data):
 set_seed(ppo_config.seed)
 
 # Now let's build the model, the reference model, and the tokenizer.
-# wwind why peft donot need ref_model
+# why peft donot need ref_model: no need ref model by default,that is what PEFT mean.
 if not args.use_peft:
     ref_model = trl_model_class.from_pretrained(ppo_config.model_name, trust_remote_code=args.trust_remote_code)
     device_map = None
@@ -193,3 +202,5 @@ for _epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
     # Run PPO step
     stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
     ppo_trainer.log_stats(stats, batch, rewards, columns_to_log=["query", "response", "ref_response", "ref_rewards"])
+
+print("End")
