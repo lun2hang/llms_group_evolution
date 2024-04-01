@@ -205,7 +205,7 @@ for _epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
     ppo_trainer.log_stats(stats, batch, rewards, columns_to_log=["query", "response", "ref_response", "ref_rewards"])
     # print rewards
     batch_rewards_avg = sum(rewards) / len(rewards)
-#    print("\nBatch:%d,rewards_avg = %f \n" % (num_batch, batch_rewards_avg))
+    print("\nBatch:%d,rewards_avg = %f \n" % (num_batch, batch_rewards_avg))
     num_batch += 1
 print("End")
-# we can see rewards/sample rises from 0.11 to 1.60,independent evolution works
+# we can see rewards/sample rises from 0.11 to 1.60,independent evolution works。it takes 20batchs(batchsize 128) to converge.
