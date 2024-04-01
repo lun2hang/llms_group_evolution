@@ -208,4 +208,4 @@ for _epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
 #    print("\nBatch:%d,rewards_avg = %f \n" % (num_batch, batch_rewards_avg))
     num_batch += 1
 print("End")
-# we can see rewards rises from 0.11 to 1.60,independent evolution works
+# we can see rewards/sample rises from 0.11 to 1.60,independent evolution works
