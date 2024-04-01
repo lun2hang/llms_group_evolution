@@ -1,4 +1,4 @@
-#TRL demo:LLM learning to generate a more positive comments to a movie,from a bert based sentiment classifier
+#TRL demo:LLM learning to generate a more positive comments starting with a head part of a IMDB comment,guided/rewarded by a bert based sentiment classifier
 
 """
 python examples/scripts/ppo.py \
