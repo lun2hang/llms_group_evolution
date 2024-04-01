@@ -180,6 +180,7 @@ generation_kwargs = {
     "max_new_tokens": 32,
 }
 
+num_batch = 0
 for _epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
     query_tensors = batch["input_ids"]
 
@@ -202,5 +203,8 @@ for _epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
     # Run PPO step
     stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
     ppo_trainer.log_stats(stats, batch, rewards, columns_to_log=["query", "response", "ref_response", "ref_rewards"])
-
+    # print rewards
+    batch_rewards_avg = sum(rewards) / len(rewards)
+    print("Batch:%d,rewards_avg = %f \n" % (num_batch, batch_rewards_avg))
+    num_batch += 1
 print("End")
