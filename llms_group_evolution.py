@@ -34,6 +34,7 @@ datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 num_evolution = 1
 num_epoch = 1
 num_llms = 2
+# early break a epoch
 max_ppo_steps_per_epoch = 16
 #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
 positive_sample_scentiment_threshhold = 1.2
