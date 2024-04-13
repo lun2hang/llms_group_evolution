@@ -4,4 +4,4 @@
 
 2、Agents can have lifetime,top Agents clone themselves,bottom Agents vanish.
 
-all the mechanism realize a ecosystem obeying Theory of Evolution
+all the mechanism realize a ecosystem obeying Theory of Evolution.
