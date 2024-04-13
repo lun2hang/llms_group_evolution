@@ -44,7 +44,8 @@ args, ppo_config = parser.parse_args_into_dataclasses()
 ppo_config.model_name = base_model_path
 ppo_config.query_dataset = datasets_parquet_path
 ppo_config.reward_model = "sentiment-analysis:" + reward_model_path
-
+ppo_config.mini_batch_size = 128
+ppo_config.batch_size = 128
 
 # We then define the arguments to pass to the sentiment analysis pipeline.
 # We set `return_all_scores` to True to get the sentiment score for each token.
