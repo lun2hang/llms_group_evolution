@@ -34,8 +34,8 @@ datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 num_evolution = 1
 num_epoch = 1
 num_llms = 2
-# early break a epoch
-max_ppo_steps_per_epoch = 16
+# early break a epoch if converge or for tuning efficiency sake
+max_ppo_steps_per_epoch = 4
 #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
 positive_sample_scentiment_threshhold = 1.2
 
@@ -199,7 +199,7 @@ for i in range(num_evolution):
 #inner loop for rl start
         for k in range(num_llms):
 #PPO train: here we use a sequnential ppo training to save GPU memory
-            print("RL from feedback from envrionment in evol: %d, epoch: %d, llms: %d " % (i, j, k))
+            print("RL from feedback from envrionment in evol: %d, epoch: %d, llms: %d begin:" % (i, j, k))
             #init the peft model[k] with different adaptor for specific llms,over write ppotrainer
             
             #PPO training
@@ -227,7 +227,7 @@ for i in range(num_evolution):
                 batch["ref_rewards"] = ref_rewards
                 # print batch_avg_rewards before each ppo step
                 batch_rewards_avg = sum(rewards) / len(rewards)
-                print("\nBefore Batch/Step:%d,rewards_avg = %f \n" % (num_batch, batch_rewards_avg))
+                print("\nIn in evol: %d, epoch: %d, llms: %d,Before PPO Step:%d,rewards_avg = %f \n" % (i, j, k, num_batch, batch_rewards_avg))
                 #accumulate positive reviews over all batchs from k_th llm
                 batch_positive_review = [review for review, reward in zip(texts, rewards) if (reward > positive_sample_scentiment_threshhold)]
                 positive_reviews.extend(batch_positive_review)
@@ -239,17 +239,21 @@ for i in range(num_evolution):
                 # ppo can converge before all training datas are consumed,also for tuning efficiency sake.add a ealy_stop switch
                 if num_batch == max_ppo_steps_per_epoch:
                     break     
+            print("RL from feedback from envrionment in evol: %d, epoch: %d, llms: %d end:" % (i, j, k))
+            
             #save model per epoch
-
+            model_save_path = "%s/model_afterppo_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
+            ensure_dir(model_save_path)
+            ppo_trainer.save_pretrained(model_save_path)
             #save generation as positive sample if reward is bigger than threshhold
             df = pd.DataFrame(
                 {
                 "train":positive_reviews    
                 }
             )            
-            save_path = "%s/generated_positive_reviews_evolve%d_epoch%d_llms%d.parquet" % (dumped_positive_review_path, i, j, k)
-            ensure_dir(save_path)
-            df.to_parquet(save_path, engine='pyarrow')
+            sample_save_path = "%s/generated_positive_reviews_evolve%d_epoch%d_llms%d.parquet" % (dumped_positive_review_path, i, j, k)
+            ensure_dir(sample_save_path)
+            df.to_parquet(sample_save_path, engine='pyarrow')
 #ppo train next llms
         for k in range(num_llms):
             print("SFT from other llm's expericences in evol: %d, epoch: %d, llms: %d " % (i, j, k))
