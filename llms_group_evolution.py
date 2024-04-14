@@ -36,7 +36,7 @@ num_evolution = 1
 num_epoch = 1
 num_llms = 2
 # early break a epoch if converge or for tuning efficiency sake
-max_ppo_steps_per_epoch = 2
+max_ppo_steps_per_epoch = 16
 #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
 positive_sample_scentiment_threshhold = 1.2
 
@@ -265,7 +265,7 @@ for i in range(num_evolution):
             #A model sfted by positive sample from all other models, vice versa
             #load positive generations
             sample_save_filename = "generated_positive_reviews_evolve%d_epoch%d_llms%d.parquet" % (i, j, k)
-            dataset = load_dataset(
+            dataset_sft = load_dataset(
                 path = "parquet", 
                 data_dir = dumped_positive_review_path, 
                 data_files = {'train': sample_save_filename},
@@ -274,10 +274,11 @@ for i in range(num_evolution):
             #load tuned model after ppo
             model_save_path = "%s/model_afterppo_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
             model = AutoModelForCausalLM.from_pretrained(model_save_path)
+            tokenizer = AutoTokenizer.from_pretrained(model_save_path)
             # train
             trainer = SFTTrainer(
                 model,
-                train_dataset=dataset,
+                train_dataset=dataset_sft,
                 dataset_text_field="dumped_positive_generation",
                 max_seq_length=512,
             )
@@ -285,14 +286,27 @@ for i in range(num_evolution):
             #model save checkpoint
             model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
             trainer.save_model(model_save_path)
-            #eval with reward model
-            dataloader = DataLoader(dataset, batch_size = 128)
+            #eval with reward model,the dataset is original dataset with length sample
+            dataloader = DataLoader(dataset, batch_size = 128, collate_fn =  collator)
             num_batch = 0
             for batch in dataloader:
                 #generation
-
+                review_head = batch["query"]
+                generater = pipeline(
+                    "text-generation",
+                    model = model,
+                    tokenizer=tokenizer,
+                    device="cuda"
+                    )
+                generated_reviews = generater(review_head,
+                    **generation_kwargs
+                    )
                 #compute scentiment rewards
-
+                texts = [review[0]["generated_text"] for review in generated_reviews]
+                pipe_outputs = sentiment_pipe(texts, **sent_kwargs)
+                rewards = [torch.tensor(output[1]["score"]) for output in pipe_outputs]
+                batch_rewards_avg = sum(rewards) / len(rewards)
+                print("\nIn in evol: %d, epoch: %d, llms: %d,After all SFT batchs,eval with batch data:%d,rewards_avg = %f \n" % (i, j, k, num_batch, batch_rewards_avg))
                 num_batch += 1
                 # use same amount of batchs to check rewards, as ppo step did
                 if num_batch == max_ppo_steps_per_epoch:
