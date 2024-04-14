@@ -12,7 +12,6 @@ for i in num_evolution
     replace the Bottom N llms with dupliations of the Top M llms
 '''
 from dataclasses import dataclass, field
-from typing import Optional
 import torch
 from torch.utils.data import DataLoader
 from accelerate import Accelerator
@@ -23,6 +22,7 @@ from transformers import AutoTokenizer, HfArgumentParser, pipeline, AutoModelFor
 from trl import AutoModelForCausalLMWithValueHead, AutoModelForSeq2SeqLMWithValueHead, PPOConfig, PPOTrainer, set_seed, SFTTrainer
 from trl.core import LengthSampler
 from trl.import_utils import is_npu_available, is_xpu_available
+from typing import Optional
 import pandas as pd
 import os
 
