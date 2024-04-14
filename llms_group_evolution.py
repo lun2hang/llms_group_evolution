@@ -14,12 +14,13 @@ for i in num_evolution
 from dataclasses import dataclass, field
 from typing import Optional
 import torch
+from torch.utils.data import DataLoader
 from accelerate import Accelerator
 from datasets import load_dataset
 from peft import LoraConfig
 from tqdm import tqdm
-from transformers import AutoTokenizer, HfArgumentParser, pipeline
-from trl import AutoModelForCausalLMWithValueHead, AutoModelForSeq2SeqLMWithValueHead, PPOConfig, PPOTrainer, set_seed
+from transformers import AutoTokenizer, HfArgumentParser, pipeline, AutoModelForCausalLM
+from trl import AutoModelForCausalLMWithValueHead, AutoModelForSeq2SeqLMWithValueHead, PPOConfig, PPOTrainer, set_seed, SFTTrainer
 from trl.core import LengthSampler
 from trl.import_utils import is_npu_available, is_xpu_available
 import pandas as pd
@@ -35,7 +36,7 @@ num_evolution = 1
 num_epoch = 1
 num_llms = 2
 # early break a epoch if converge or for tuning efficiency sake
-max_ppo_steps_per_epoch = 4
+max_ppo_steps_per_epoch = 2
 #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
 positive_sample_scentiment_threshhold = 1.2
 
@@ -116,7 +117,7 @@ def build_dataset(config, query_dataset, input_min_text_length=2, input_max_text
 # We retrieve the dataloader by calling the `build_dataset` function.
 dataset = build_dataset(ppo_config, ppo_config.query_dataset)
 
-#confusion solved：遍历字典就是遍历key，遍历值需要遍历 dict.ivalues（），遍历KV：xx.items() here，we trans the list of dicts to a dict of list
+#confusion solved：遍历字典就是遍历key，遍历值需要遍历 dict.values（），遍历KV：xx.items() here，we trans the list of dicts to a dict of list
 def collator(data):
     return {key: [d[key] for d in data] for key in data[0]}
 
@@ -194,11 +195,11 @@ if sentiment_pipe.model.config.pad_token_id is None:
 
 #loop for evolution start
 for i in range(num_evolution):
-#loop for epoch start
+    #loop for epoch start
     for j in range(num_epoch):
-#inner loop for rl start
+        #inner loop for rl start
         for k in range(num_llms):
-#PPO train: here we use a sequnential ppo training to save GPU memory
+            #PPO train: here we use a sequnential ppo training to save GPU memory
             print("RL from feedback from envrionment in evol: %d, epoch: %d, llms: %d begin:" % (i, j, k))
             #init the peft model[k] with different adaptor for specific llms,over write ppotrainer
             
@@ -248,29 +249,56 @@ for i in range(num_evolution):
             #save generation as positive sample if reward is bigger than threshhold
             df = pd.DataFrame(
                 {
-                "train":positive_reviews    
+                "dumped_positive_generation":positive_reviews    
                 }
             )            
             sample_save_path = "%s/generated_positive_reviews_evolve%d_epoch%d_llms%d.parquet" % (dumped_positive_review_path, i, j, k)
             ensure_dir(sample_save_path)
             df.to_parquet(sample_save_path, engine='pyarrow')
-#ppo train next llms
+            #ppo train next llms
+        
+        #inner rl loop over all llms end
+
+        #inner sft loop over all llms start
         for k in range(num_llms):
             print("SFT from other llm's expericences in evol: %d, epoch: %d, llms: %d " % (i, j, k))
-#inner rl loop end
+            #A model sfted by positive sample from all other models, vice versa
+            #load positive generations
+            sample_save_filename = "generated_positive_reviews_evolve%d_epoch%d_llms%d.parquet" % (i, j, k)
+            dataset = load_dataset(
+                path = "parquet", 
+                data_dir = dumped_positive_review_path, 
+                data_files = {'train': sample_save_filename},
+                split = "train"
+                )
+            #load tuned model after ppo
+            model_save_path = "%s/model_afterppo_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
+            model = AutoModelForCausalLM.from_pretrained(model_save_path)
+            # train
+            trainer = SFTTrainer(
+                model,
+                train_dataset=dataset,
+                dataset_text_field="dumped_positive_generation",
+                max_seq_length=512,
+            )
+            trainer.train()
+            #model save checkpoint
+            model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
+            trainer.save_model(model_save_path)
+            #eval with reward model
+            dataloader = DataLoader(dataset, batch_size = 128)
+            num_batch = 0
+            for batch in dataloader:
+                #generation
 
-#inner sft loop start
+                #compute scentiment rewards
 
-#A model sfted by positive sample from all other models, vice versa
-
-#model save checkpoint
-#eval with reward model
-
-#inner sft loop end
-
-
-
-#loop for epoch end
+                num_batch += 1
+                # use same amount of batchs to check rewards, as ppo step did
+                if num_batch == max_ppo_steps_per_epoch:
+                    break
+        #inner sft loop end
+    #loop for epoch end
 
 #drop the bottom models,duplicate the top models
 
