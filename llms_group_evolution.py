@@ -202,6 +202,13 @@ for i in range(num_evolution):
             #PPO train: here we use a sequnential ppo training to save GPU memory
             print("RL from feedback from envrionment in evol: %d, epoch: %d, llms: %d begin:" % (i, j, k))
             #init the peft model[k] with different adaptor for specific llms,over write ppotrainer
+            if i == 0 & j == 0:
+                #as inited above,all models inited with the same basemodel/peft model
+                print("cold start in evol: %d, epoch: %d, llms: %d with model: %s" % (i, j, k, base_model_path))  
+            else:
+                #load saved model from last epoch,over write ppotrainer
+                model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, (j-1), k)
+                print("hot  start in evol: %d, epoch: %d, llms: %d with model: %s" % (i, j, k, model_save_path))
             
             #PPO training
             num_batch = 0
