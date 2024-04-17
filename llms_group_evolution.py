@@ -209,15 +209,15 @@ for i in range(num_evolution):
         #inner loop for rl start
         for k in range(num_llms):
             #PPO train: here we use a sequnential ppo training to save GPU memory
-            logging.info("evol: %d, epoch: %d, llms: %d RL from feedback from envrionment begin:" % (i, j, k))
+            logging.info("evol%d-epoch%d-llms%d RL from feedback from envrionment begin:" % (i, j, k))
             #init the peft model[k] with different adaptor for specific llms,over write ppotrainer
             if i == 0 and j == 0:
                 #as inited above,all models inited with the same basemodel/peft model
-                logging.info("evol: %d, epoch: %d, llms: %d cold start with model: %s" % (i, j, k, base_model_path))  
+                logging.info("evol%d-epoch%d-llms%d cold start with model: %s" % (i, j, k, base_model_path))  
             else:
                 #load saved model from last epoch,over write ppotrainer
                 model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, (j-1), k)
-                logging.info("evol: %d, epoch: %d, llms: %d hot  start with model: %s" % (i, j, k, model_save_path))
+                logging.info("evol%d-epoch%d-llms%d hot  start with model: %s" % (i, j, k, model_save_path))
                 ppo_config.model_name = model_save_path
                 #hot start ref model
                 if not args.use_peft:
@@ -268,7 +268,7 @@ for i in range(num_evolution):
                 batch["ref_rewards"] = ref_rewards
                 #log batch_avg_rewards before each ppo step
                 batch_rewards_avg = sum(rewards) / len(rewards)
-                logging.info("evol: %d, epoch: %d, llms: %d Before PPO Step:%d,rewards_avg = %f " % (i, j, k, num_batch, batch_rewards_avg))
+                logging.info("evol%d-epoch%d-llms%d Before PPO Step:%d,rewards_avg = %f " % (i, j, k, num_batch, batch_rewards_avg))
                 #accumulate positive reviews over all batchs from k_th llm
                 batch_positive_review = [review for review, reward in zip(texts, rewards) if (reward > positive_sample_scentiment_threshhold)]
                 positive_reviews.extend(batch_positive_review)
@@ -280,7 +280,7 @@ for i in range(num_evolution):
                 # ppo can converge before all training datas are consumed,also for tuning efficiency sake.add a ealy_stop switch
                 if num_batch == max_ppo_steps_per_epoch:
                     break     
-            logging.info("evol: %d, epoch: %d, llms: %d RL from feedback from envrionment end:" % (i, j, k))
+            logging.info("evol%d-epoch%d-llms%d RL from feedback from envrionment end:" % (i, j, k))
             
             #save model per epoch
             model_save_path = "%s/model_afterppo_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
@@ -301,7 +301,7 @@ for i in range(num_evolution):
 
         #inner sft loop over all llms start
         for k in range(num_llms):
-            logging.info("SFT from other llm's expericences in evol: %d, epoch: %d, llms: %d " % (i, j, k))
+            logging.info("evol%d-epoch%d-llms%d SFT from other llm's expericences begin" % (i, j, k))
             #A model sfted by positive sample from all other models, vice versa
             #load positive generations from other llms
             all_positivesample_exceptself = []
@@ -355,11 +355,13 @@ for i in range(num_evolution):
                 pipe_outputs = sentiment_pipe(texts, **sent_kwargs)
                 rewards = [torch.tensor(output[1]["score"]) for output in pipe_outputs]
                 batch_rewards_avg = sum(rewards) / len(rewards)
-                logging.info("evol: %d, epoch: %d, llms: %d After all SFT batchs,eval with batch data:%d,rewards_avg = %f" % (i, j, k, num_batch, batch_rewards_avg))
+                logging.info("evol%d-epoch%d-llms%d After all SFT batchs,eval with batch data:%d,rewards_avg = %f" % (i, j, k, num_batch, batch_rewards_avg))
                 num_batch += 1
                 # use same amount of batchs to check rewards, as ppo step did
                 if num_batch == max_ppo_steps_per_epoch:
                     break
+                logging.info("evol%d-epoch%d-llms%d SFT from other llm's expericences end" % (i, j, k))
+            
         #inner sft loop end
     #loop for epoch end
 
