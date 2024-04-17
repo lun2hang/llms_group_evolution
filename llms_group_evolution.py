@@ -309,6 +309,7 @@ for i in range(num_evolution):
                     split = "train"
                     )
                 all_positivesample_exceptself.append(dataset_sft)
+            #concat datasets
             dataset_sft = concatenate_datasets(all_positivesample_exceptself)
             #load tuned model after ppo
             model_save_path = "%s/model_afterppo_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
