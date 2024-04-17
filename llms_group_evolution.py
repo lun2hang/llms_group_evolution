@@ -25,20 +25,28 @@ from trl.import_utils import is_npu_available, is_xpu_available
 from typing import Optional
 import pandas as pd
 import os
+import logging
 
+#path
 base_model_path = "/DATA/jupyter/personal/gpt2"
 out_put_path = "/DATA/jupyter/personal/group_evolution"
 tuned_model_path = out_put_path + "/models"
 dumped_positive_review_path = out_put_path + "/positive_reviews"
 reward_model_path = "/DATA/jupyter/personal/lvwerra/distilbert-imdb"
 datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
+#training parameter
 num_evolution = 1
 num_epoch = 2
 num_llms = 2
-# early break a epoch if converge or for tuning efficiency sake
-max_ppo_steps_per_epoch = 1
-#generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
-positive_sample_scentiment_threshhold = 1.2
+max_ppo_steps_per_epoch = 1 # early break a epoch if converge or for tuning efficiency sake
+positive_sample_scentiment_threshhold = 1.2 #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
+#log config
+log_level = logging.INFO
+logging.basicConfig(
+    filename=out_put_path+"/log.txt", 
+    format='%(asctime)s-%(levelname)s-%(message)s',
+    level=log_level
+    )
 
 tqdm.pandas()
 
@@ -194,21 +202,22 @@ if sentiment_pipe.model.config.pad_token_id is None:
     sentiment_pipe.model.config.pad_token_id = tokenizer.pad_token_id
 
 #loop for evolution start
+logging.info("Group evolution start\n")
 for i in range(num_evolution):
     #loop for epoch start
     for j in range(num_epoch):
         #inner loop for rl start
         for k in range(num_llms):
             #PPO train: here we use a sequnential ppo training to save GPU memory
-            print("RL from feedback from envrionment in evol: %d, epoch: %d, llms: %d begin:" % (i, j, k))
+            logging.info("evol: %d, epoch: %d, llms: %d RL from feedback from envrionment begin:" % (i, j, k))
             #init the peft model[k] with different adaptor for specific llms,over write ppotrainer
-            if i == 0 & j == 0:
+            if i == 0 and j == 0:
                 #as inited above,all models inited with the same basemodel/peft model
-                print("cold start in evol: %d, epoch: %d, llms: %d with model: %s" % (i, j, k, base_model_path))  
+                logging.info("evol: %d, epoch: %d, llms: %d cold start with model: %s" % (i, j, k, base_model_path))  
             else:
                 #load saved model from last epoch,over write ppotrainer
                 model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, (j-1), k)
-                print("hot  start in evol: %d, epoch: %d, llms: %d with model: %s" % (i, j, k, model_save_path))
+                logging.info("evol: %d, epoch: %d, llms: %d hot  start with model: %s" % (i, j, k, model_save_path))
                 ppo_config.model_name = model_save_path
                 #hot start ref model
                 if not args.use_peft:
@@ -257,9 +266,9 @@ for i in range(num_evolution):
                 ref_pipe_outputs = sentiment_pipe(ref_texts, **sent_kwargs)
                 ref_rewards = [torch.tensor(output[1]["score"]) for output in ref_pipe_outputs]
                 batch["ref_rewards"] = ref_rewards
-                # print batch_avg_rewards before each ppo step
+                #log batch_avg_rewards before each ppo step
                 batch_rewards_avg = sum(rewards) / len(rewards)
-                print("\nIn in evol: %d, epoch: %d, llms: %d,Before PPO Step:%d,rewards_avg = %f \n" % (i, j, k, num_batch, batch_rewards_avg))
+                logging.info("evol: %d, epoch: %d, llms: %d Before PPO Step:%d,rewards_avg = %f " % (i, j, k, num_batch, batch_rewards_avg))
                 #accumulate positive reviews over all batchs from k_th llm
                 batch_positive_review = [review for review, reward in zip(texts, rewards) if (reward > positive_sample_scentiment_threshhold)]
                 positive_reviews.extend(batch_positive_review)
@@ -271,7 +280,7 @@ for i in range(num_evolution):
                 # ppo can converge before all training datas are consumed,also for tuning efficiency sake.add a ealy_stop switch
                 if num_batch == max_ppo_steps_per_epoch:
                     break     
-            print("RL from feedback from envrionment in evol: %d, epoch: %d, llms: %d end:" % (i, j, k))
+            logging.info("evol: %d, epoch: %d, llms: %d RL from feedback from envrionment end:" % (i, j, k))
             
             #save model per epoch
             model_save_path = "%s/model_afterppo_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
@@ -292,7 +301,7 @@ for i in range(num_evolution):
 
         #inner sft loop over all llms start
         for k in range(num_llms):
-            print("SFT from other llm's expericences in evol: %d, epoch: %d, llms: %d " % (i, j, k))
+            logging.info("SFT from other llm's expericences in evol: %d, epoch: %d, llms: %d " % (i, j, k))
             #A model sfted by positive sample from all other models, vice versa
             #load positive generations from other llms
             all_positivesample_exceptself = []
@@ -346,7 +355,7 @@ for i in range(num_evolution):
                 pipe_outputs = sentiment_pipe(texts, **sent_kwargs)
                 rewards = [torch.tensor(output[1]["score"]) for output in pipe_outputs]
                 batch_rewards_avg = sum(rewards) / len(rewards)
-                print("\nIn in evol: %d, epoch: %d, llms: %d,After all SFT batchs,eval with batch data:%d,rewards_avg = %f \n" % (i, j, k, num_batch, batch_rewards_avg))
+                logging.info("evol: %d, epoch: %d, llms: %d After all SFT batchs,eval with batch data:%d,rewards_avg = %f" % (i, j, k, num_batch, batch_rewards_avg))
                 num_batch += 1
                 # use same amount of batchs to check rewards, as ppo step did
                 if num_batch == max_ppo_steps_per_epoch:
@@ -357,5 +366,4 @@ for i in range(num_evolution):
 #drop the bottom models,duplicate the top models
 
 #loop for evolution end
-
-print("End")
+logging.info("Group evolution end\n")
