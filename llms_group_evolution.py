@@ -217,7 +217,7 @@ for i in range(num_evolution):
             else:
                 #load saved model from last epoch,over write ppotrainer
                 model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, (j-1), k)
-                logging.info("evol%d-epoch%d-llms%d hot  start with model: %s" % (i, j, k, model_save_path))
+                logging.info("evol%d-epoch%d-llms%d hot start with model: %s" % (i, j, k, model_save_path))
                 ppo_config.model_name = model_save_path
                 #hot start ref model
                 if not args.use_peft:
@@ -301,7 +301,7 @@ for i in range(num_evolution):
 
         #inner sft loop over all llms start
         for k in range(num_llms):
-            logging.info("evol%d-epoch%d-llms%d SFT from other llm's expericences begin" % (i, j, k))
+            logging.info("evol%d-epoch%d-llms%d SFT from other llm's expericences:" % (i, j, k))
             #A model sfted by positive sample from all other models, vice versa
             #load positive generations from other llms
             all_positivesample_exceptself = []
