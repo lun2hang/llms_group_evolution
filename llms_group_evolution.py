@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 import torch
 from torch.utils.data import DataLoader
 from accelerate import Accelerator
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 from peft import LoraConfig
 from tqdm import tqdm
 from transformers import AutoTokenizer, HfArgumentParser, pipeline, AutoModelForCausalLM
@@ -33,10 +33,10 @@ dumped_positive_review_path = out_put_path + "/positive_reviews"
 reward_model_path = "/DATA/jupyter/personal/lvwerra/distilbert-imdb"
 datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 num_evolution = 1
-num_epoch = 1
+num_epoch = 2
 num_llms = 2
 # early break a epoch if converge or for tuning efficiency sake
-max_ppo_steps_per_epoch = 16
+max_ppo_steps_per_epoch = 1
 #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
 positive_sample_scentiment_threshhold = 1.2
 
@@ -209,7 +209,31 @@ for i in range(num_evolution):
                 #load saved model from last epoch,over write ppotrainer
                 model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, (j-1), k)
                 print("hot  start in evol: %d, epoch: %d, llms: %d with model: %s" % (i, j, k, model_save_path))
-            
+                ppo_config.model_name = model_save_path
+                #hot start ref model
+                if not args.use_peft:
+                    ref_model = trl_model_class.from_pretrained(ppo_config.model_name, trust_remote_code=args.trust_remote_code)
+                    device_map = None
+                    peft_config = None
+                else:
+                    peft_config = LoraConfig(
+                        r=args.lora_r,
+                        lora_alpha=args.lora_alpha,
+                        bias="none",
+                        task_type="CAUSAL_LM",
+                    )
+                    ref_model = None
+                    # Copy the model to each device
+                    device_map = {"": Accelerator().local_process_index}
+                #load hot start model
+                model = trl_model_class.from_pretrained(
+                    ppo_config.model_name,
+                    trust_remote_code=args.trust_remote_code,
+                    device_map=device_map,
+                    peft_config=peft_config,
+                )
+                #only over write ppo trainer with hot start,reward model \ tokenizer \ dataset \ devices keep as initialized 
+                ppo_trainer = PPOTrainer(ppo_config, model, ref_model, tokenizer, dataset=dataset, data_collator=collator) 
             #PPO training
             num_batch = 0
             positive_reviews = []
@@ -270,14 +294,22 @@ for i in range(num_evolution):
         for k in range(num_llms):
             print("SFT from other llm's expericences in evol: %d, epoch: %d, llms: %d " % (i, j, k))
             #A model sfted by positive sample from all other models, vice versa
-            #load positive generations
-            sample_save_filename = "generated_positive_reviews_evolve%d_epoch%d_llms%d.parquet" % (i, j, k)
-            dataset_sft = load_dataset(
-                path = "parquet", 
-                data_dir = dumped_positive_review_path, 
-                data_files = {'train': sample_save_filename},
-                split = "train"
-                )
+            #load positive generations from other llms
+            all_positivesample_exceptself = []
+            for m in range(num_llms):
+                #skip selfgenerated sample
+                if m == k:
+                    continue
+                #load sample from other llms
+                sample_save_filename = "generated_positive_reviews_evolve%d_epoch%d_llms%d.parquet" % (i, j, k)
+                dataset_sft = load_dataset(
+                    path = "parquet", 
+                    data_dir = dumped_positive_review_path, 
+                    data_files = {'train': sample_save_filename},
+                    split = "train"
+                    )
+                all_positivesample_exceptself.append(dataset_sft)
+            dataset_sft = concatenate_datasets(all_positivesample_exceptself)
             #load tuned model after ppo
             model_save_path = "%s/model_afterppo_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
             model = AutoModelForCausalLM.from_pretrained(model_save_path)
