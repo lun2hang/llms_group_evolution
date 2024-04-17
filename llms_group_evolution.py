@@ -301,7 +301,7 @@ for i in range(num_evolution):
                 if m == k:
                     continue
                 #load sample from other llms
-                sample_save_filename = "generated_positive_reviews_evolve%d_epoch%d_llms%d.parquet" % (i, j, k)
+                sample_save_filename = "generated_positive_reviews_evolve%d_epoch%d_llms%d.parquet" % (i, j, m)
                 dataset_sft = load_dataset(
                     path = "parquet", 
                     data_dir = dumped_positive_review_path, 
