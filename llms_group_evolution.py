@@ -36,10 +36,12 @@ reward_model_path = "/DATA/jupyter/personal/lvwerra/distilbert-imdb"
 datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 #training parameter
 num_evolution = 1
-num_epoch = 2
-num_llms = 2
-max_ppo_steps_per_epoch = 1 # early break a epoch if converge or for tuning efficiency sake
+num_epoch = 3
+num_llms = 3
 positive_sample_scentiment_threshhold = 1.2 #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
+llms_score = [0.0 for i in range(num_llms)]
+max_ppo_steps_per_epoch = 2 # early break a epoch if converge or for tuning efficiency sake
+max_eval_batchs_per_epoch = 1 #how many batch data is evaled to text different model
 #log config
 log_level = logging.INFO
 logging.basicConfig(
@@ -212,43 +214,48 @@ for i in range(num_evolution):
             logging.info("evol%d-epoch%d-llms%d RL from feedback from envrionment begin:" % (i, j, k))
             #init the peft model[k] with different adaptor for specific llms,over write ppotrainer
             if i == 0 and j == 0:
-                #as inited above,all models inited with the same basemodel/peft model
+                #cold start:all models inited with the same basemodel/peft model
                 logging.info("evol%d-epoch%d-llms%d cold start with model: %s" % (i, j, k, base_model_path))  
+            elif i != 0 and j == 0:
+                model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, (i-1), (num_epoch-1), k)
+                logging.info("evol%d-epoch%d-llms%d hotstart with: %s" % (i, j, k, model_save_path))
+                ppo_config.model_name = model_save_path
             else:
-                #load saved model from last epoch,over write ppotrainer
+                #hot start: load saved model from last epoch,over write ppotrainer
                 model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, (j-1), k)
                 logging.info("evol%d-epoch%d-llms%d hotstart with: %s" % (i, j, k, model_save_path))
                 ppo_config.model_name = model_save_path
-                #hot start ref model
-                if not args.use_peft:
-                    ref_model = trl_model_class.from_pretrained(ppo_config.model_name, trust_remote_code=args.trust_remote_code)
-                    device_map = None
-                    peft_config = None
-                else:
-                    peft_config = LoraConfig(
-                        r=args.lora_r,
-                        lora_alpha=args.lora_alpha,
-                        bias="none",
-                        task_type="CAUSAL_LM",
-                    )
-                    ref_model = None
-                    # Copy the model to each device
-                    device_map = {"": Accelerator().local_process_index}
-                #load hot start model
-                model = trl_model_class.from_pretrained(
-                    ppo_config.model_name,
-                    trust_remote_code=args.trust_remote_code,
-                    device_map=device_map,
-                    peft_config=peft_config,
+            #setseed for each llms to generate reproducable and different text/random parameter
+            set_seed(i*100+j*10+k)
+            #over write ref model
+            if not args.use_peft:
+                ref_model = trl_model_class.from_pretrained(ppo_config.model_name, trust_remote_code=args.trust_remote_code)
+                device_map = None
+                peft_config = None
+            else:
+                peft_config = LoraConfig(
+                    r=args.lora_r,
+                    lora_alpha=args.lora_alpha,
+                    bias="none",
+                    task_type="CAUSAL_LM",
                 )
-                #only over write ppo trainer with hot start,reward model \ tokenizer \ dataset \ devices keep as initialized 
-                ppo_trainer = PPOTrainer(ppo_config, model, ref_model, tokenizer, dataset=dataset, data_collator=collator) 
+                ref_model = None
+                # Copy the model to each device
+                device_map = {"": Accelerator().local_process_index}
+            #load hot start model
+            model = trl_model_class.from_pretrained(
+                ppo_config.model_name,
+                trust_remote_code=args.trust_remote_code,
+                device_map=device_map,
+                peft_config=peft_config,
+            )
+            #only over write ppo trainer with hot start,reward model \ tokenizer \ dataset \ devices keep as initialized 
+            ppo_trainer = PPOTrainer(ppo_config, model, ref_model, tokenizer, dataset=dataset, data_collator=collator) 
             #PPO training
             num_batch = 0
             positive_reviews = []
             for _epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
-                query_tensors = batch["input_ids"]
-                
+                query_tensors = batch["input_ids"]                
                 #model[k] generate a response ,using a randomly sampled query
                 # Get response from gpt2
                 response_tensors, ref_response_tensors = ppo_trainer.generate(
@@ -336,7 +343,12 @@ for i in range(num_evolution):
             model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, j, k)
             trainer.save_model(model_save_path)
             #eval with reward model,the dataset is original dataset with length sample
-            dataloader = DataLoader(dataset, batch_size = 128, collate_fn =  collator)
+            #use SAME eval_data to decide evolution
+            dataloader = DataLoader(
+                dataset, 
+                batch_size = 128,
+                shuffle = False, 
+                collate_fn =  collator)
             num_batch = 0
             for batch in dataloader:
                 #generation
@@ -355,17 +367,21 @@ for i in range(num_evolution):
                 pipe_outputs = sentiment_pipe(texts, **sent_kwargs)
                 rewards = [torch.tensor(output[1]["score"]) for output in pipe_outputs]
                 batch_rewards_avg = sum(rewards) / len(rewards)
-                logging.info("evol%d-epoch%d-llms%d After all SFT batchs,eval with batch data:%d,rewards_avg = %f" % (i, j, k, num_batch, batch_rewards_avg))
+                llms_score[k] += batch_rewards_avg
+                logging.info("evol%d-epoch%d-llms%d After SFT,eval with no_shuffle batch:%d,rewards_avg = %f" % (i, j, k, num_batch, batch_rewards_avg))
                 num_batch += 1
                 # use same amount of batchs to check rewards, as ppo step did
-                if num_batch == max_ppo_steps_per_epoch:
+                if num_batch == max_eval_batchs_per_epoch:
                     break
-                logging.info("evol%d-epoch%d-llms%d SFT from other llm's expericences end" % (i, j, k))
-            
+            logging.info("evol%d-epoch%d-llms%d SFT from other llm's expericences end" % (i, j, k))    
         #inner sft loop end
+        #model cumulated score loop log
+        for k in range(num_llms):
+            logging.info("evol%d-epoch%d-llms%d till now cumulated score:%f" % (i, j, k, llms_score[k]))    
     #loop for epoch end
-
-#drop the bottom models,duplicate the top models
-
+    #drop the bottom models every N epochs, duplicate the top models
+    
+    #refresh score card
+    llms_score = [0 for i in range(num_llms)]
 #loop for evolution end
 logging.info("Group evolution end\n")
