@@ -381,7 +381,9 @@ for i in range(num_evolution):
     #loop for epoch end
     #drop the bottom models every N epochs, duplicate the top models
     
+
     #refresh score card
     llms_score = [0 for i in range(num_llms)]
+    logging.info("evol%d ends,cumulated score reset to zero" % (i))
 #loop for evolution end
 logging.info("Group evolution end\n")
