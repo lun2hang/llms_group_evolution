@@ -7,3 +7,5 @@
 3 All the mechanism realize a ecosystem obeying Theory of Evolution.
 
 4 This training paradigm will work in all multiagents scene,Ads\Recommendation\Unmanned call center\Unmanned Vehicle\Human kind robots\Drones
+
+5 LLMs can be deployed in different data center,which means this fit power/data distribution well and can scale up to the whole world just like what we human being do
