@@ -38,10 +38,14 @@ datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 num_evolution = 30
 num_epoch = 3
 num_llms = 3
-positive_sample_scentiment_threshhold = 1.2 #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
-llms_score = [0.0 for i in range(num_llms)]
 max_ppo_steps_per_epoch = 2 # early break a epoch if converge or for tuning efficiency sake
 max_eval_batchs_per_epoch = 1 #how many batch data is evaled to text different model
+#positive sample threshhold
+positive_sample_scentiment_threshhold_minimum = 1.2
+dynamic_rewards_coefficient = 1.1
+positive_sample_scentiment_threshhold = positive_sample_scentiment_threshhold_minimum #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
+
+llms_score = [0.0 for i in range(num_llms)]
 #log config
 log_level = logging.INFO
 logging.basicConfig(
@@ -377,14 +381,24 @@ for i in range(num_evolution):
             logging.info("evol%d-epoch%d-llms%d SFT from other llm's expericences end" % (i, j, k))    
         #inner sft loop end
         #model cumulated score loop log
+        llms_score_per_sample = [0.0 for i in range(num_llms)]
         for k in range(num_llms):
-            logging.info("evol%d-epoch%d-llms%d till now cumulated score:%f" % (i, j, k, llms_score[k]))    
+            #avg rewards per sample = (cumulated rewards /batchsize)/batchnumber/epochnumber
+            llms_score_per_sample = [i/(max_eval_batchs_per_epoch*(j+1)) for i in llms_score]                    
+            logging.info("evol%d-epoch%d-llms%d at the end of this epoch,avg reward score:%f" % (i, j, k, llms_score_per_sample[k]))    
+        avg_score_of_allsample = sum(llms_score_per_sample) / len(llms_score_per_sample)
+        positive_sample_scentiment_threshhold = max(
+            positive_sample_scentiment_threshhold_minimum,
+            avg_score_of_allsample*dynamic_rewards_coefficient
+            )
+        logging.info("evol%d-epoch%d-llms%d at the end of this epoch,sample_threshhold refresh:%f" % (i, j, k, positive_sample_scentiment_threshhold))    
+        
     #loop for epoch end
     #drop the bottom models every N epochs, duplicate the top models
     
 
     #refresh score card
     llms_score = [0 for i in range(num_llms)]
-    logging.info("evol%d ends,cumulated score reset to zero" % (i))
+    logging.info("evol%d ends,rewards score reset to zero" % (i))
 #loop for evolution end
 logging.info("Group evolution end\n")
