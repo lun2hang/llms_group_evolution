@@ -35,7 +35,7 @@ dumped_positive_review_path = out_put_path + "/positive_reviews"
 reward_model_path = "/DATA/jupyter/personal/lvwerra/distilbert-imdb"
 datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 #training parameter
-num_evolution = 1
+num_evolution = 30
 num_epoch = 3
 num_llms = 3
 positive_sample_scentiment_threshhold = 1.2 #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
@@ -217,6 +217,7 @@ for i in range(num_evolution):
                 #cold start:all models inited with the same basemodel/peft model
                 logging.info("evol%d-epoch%d-llms%d cold start with model: %s" % (i, j, k, base_model_path))  
             elif i != 0 and j == 0:
+                #hot start: load saved model from last epoch,over write ppotrainer
                 model_save_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, (i-1), (num_epoch-1), k)
                 logging.info("evol%d-epoch%d-llms%d hotstart with: %s" % (i, j, k, model_save_path))
                 ppo_config.model_name = model_save_path
