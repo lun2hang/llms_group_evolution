@@ -274,13 +274,14 @@ for i in range(num_evolution):
                 texts = [q + r for q, r in zip(batch["query"], batch["response"])]
                 pipe_outputs = sentiment_pipe(texts, **sent_kwargs)
                 rewards = [torch.tensor(output[1]["score"]) for output in pipe_outputs]
+                max_reward = max(rewards)
                 ref_texts = [q + r for q, r in zip(batch["query"], batch["ref_response"])]
                 ref_pipe_outputs = sentiment_pipe(ref_texts, **sent_kwargs)
                 ref_rewards = [torch.tensor(output[1]["score"]) for output in ref_pipe_outputs]
                 batch["ref_rewards"] = ref_rewards
                 #log batch_avg_rewards before each ppo step
                 batch_rewards_avg = sum(rewards) / len(rewards)
-                logging.info("evol%d-epoch%d-llms%d Before PPO Step:%d,rewards_avg = %f " % (i, j, k, num_batch, batch_rewards_avg))
+                logging.info("evol%d-epoch%d-llms%d Before PPO Step%d,max_reward%f,avg_reward%f " % (i, j, k, num_batch, max_reward, batch_rewards_avg))
                 #accumulate positive reviews over all batchs from k_th llm
                 batch_positive_review = [review for review, reward in zip(texts, rewards) if (reward > positive_sample_scentiment_threshhold)]
                 positive_reviews.extend(batch_positive_review)
