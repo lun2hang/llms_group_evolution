@@ -42,6 +42,7 @@ max_ppo_steps_per_epoch = 4 # early break a epoch if converge or for tuning effi
 max_eval_batchs_per_epoch = 1 #how many batch data is evaled to text different model
 #positive sample threshhold
 positive_sample_scentiment_threshhold_minimum = 1.2
+positive_sample_scentiment_threshhold_maximum = 2.85
 dynamic_rewards_coefficient = 1.1
 positive_sample_scentiment_threshhold = positive_sample_scentiment_threshhold_minimum #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
 
@@ -388,9 +389,14 @@ for i in range(num_evolution):
             llms_score_per_sample = [i/(max_eval_batchs_per_epoch*(j+1)) for i in llms_score]                    
             logging.info("evol%d-epoch%d-llms%d at the end of this epoch,avg reward score:%f" % (i, j, k, llms_score_per_sample[k]))    
         avg_score_of_allsample = sum(llms_score_per_sample) / len(llms_score_per_sample)
+        #clip the dynamic threshhold
         positive_sample_scentiment_threshhold = max(
             positive_sample_scentiment_threshhold_minimum,
             avg_score_of_allsample*dynamic_rewards_coefficient
+            )
+        positive_sample_scentiment_threshhold = min(
+            positive_sample_scentiment_threshhold_maximum,
+            positive_sample_scentiment_threshhold
             )
         logging.info("evol%d-epoch%d-llms%d at the end of this epoch,sample_threshhold refresh:%f" % (i, j, k, positive_sample_scentiment_threshhold))    
         
