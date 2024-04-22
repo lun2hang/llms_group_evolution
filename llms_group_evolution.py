@@ -38,11 +38,11 @@ datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 num_evolution = 30
 num_epoch = 3
 num_llms = 3
-max_ppo_steps_per_epoch = 2 # early break a epoch if converge or for tuning efficiency sake
-max_eval_batchs_per_epoch = 1 #how many batch data is evaled to text different model
+max_ppo_steps_per_epoch = 4 # early break a epoch if converge or for tuning efficiency sake
+max_eval_batchs_per_epoch = 2 #how many batch data is evaled to text different model
 #positive sample threshhold
 positive_sample_scentiment_threshhold_minimum = 1.2
-dynamic_rewards_coefficient = 1.1
+dynamic_rewards_coefficient = 1.08
 positive_sample_scentiment_threshhold = positive_sample_scentiment_threshhold_minimum #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
 
 llms_score = [0.0 for i in range(num_llms)]
