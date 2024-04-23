@@ -1,4 +1,4 @@
-#modify a trl demo to orgnize a group of llms to generate more positive comments to a movie, a bert based sentiments classifier acts as reward model
+#modify a trl demo to orgnize a group of llms to generate more positive consequent comments to a movie, a bert based sentiments classifier acts as reward model, max reward caped by 3.0
 
 '''
 group evolution fake code:
