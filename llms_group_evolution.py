@@ -35,7 +35,7 @@ dumped_positive_review_path = out_put_path + "/positive_reviews"
 reward_model_path = "/DATA/jupyter/personal/lvwerra/distilbert-imdb"
 datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 #training parameter
-num_evolution = 18
+num_evolution = 30
 num_epoch = 3
 num_llms = 3
 max_ppo_steps_per_epoch = 4 # early break a epoch if converge or for tuning efficiency sake
@@ -398,12 +398,17 @@ for i in range(num_evolution):
             positive_sample_scentiment_threshhold_maximum,
             positive_sample_scentiment_threshhold
             )
-        logging.info("evol%d-epoch%d-llms%d at the end of this epoch,sample_threshhold refresh:%f" % (i, j, k, positive_sample_scentiment_threshhold))    
+        logging.info("evol%d-epoch%d at the end of this epoch,sample_threshhold refresh:%f" % (i, j, positive_sample_scentiment_threshhold))    
         
     #loop for epoch end
-    #drop the bottom models every N epochs, duplicate the top models
-    
-
+    #drop the bottom models every evolution, duplicate the top models
+    best_model_index = llms_score.index(max(llms_score))
+    bottom_model_index = llms_score.index(min(llms_score))
+    best_model_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, (num_epoch-1), best_model_index)
+    bottom_model_path = "%s/model_aftersft_evolve%d_epoch%d_llms%d" % (tuned_model_path, i, (num_epoch-1), bottom_model_index)
+    cmd = "cp "+best_model_path+"/* "+bottom_model_path 
+    os.system(cmd)
+    logging.info("evol%d llms%d score%f replaces llms%d score%f" % (i, best_model_index, llms_score[best_model_index], bottom_model_index, llms_score[bottom_model_index]))
     #refresh score card
     llms_score = [0 for i in range(num_llms)]
     logging.info("evol%d ends,rewards score reset to zero" % (i))
