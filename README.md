@@ -1,4 +1,6 @@
-# LLMS can mutually compete with and help each other to form a stronger group
+# Group evolution,next generation LLM training paradigm
+
+0 LLMS can mutually compete with and help each other to form a stronger group
 
 1 Multi agents can be SFTed by other agents' positive samples and guided by self experiences with rl. This shows how human evolved
 
