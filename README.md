@@ -13,7 +13,7 @@
 5 LLMs can be deployed in different data center,which means this fit power/data distribution well and can scale up to the whole world just like what we human being do
 
 Experiment result:
-TRL demo reaches a reward of 1.6;
+After TRL demo reaches a reward of 1.6, it begins to vibrate;
 RL&SFT interleaved training gets a reward of 2.65;
 Dynamic sample_keep threshhold pushes the score to 2.85;
 Evolution/3epoch lifts the reward at evolution4 by 0.15;
