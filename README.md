@@ -13,8 +13,8 @@
 5 LLMs can be deployed in different data center,which means this fit power/data distribution well and can scale up to the whole world just like what we human being do
 
 Experiment result:
-TRL demo reach a reward of 1.6;
-RL&SFT interleaved training get a reward of 2.65;
-Dynamic sample_keep threshhold push the score to 2.85;
-Evolution lifts the reward at epoch 4 by 0.15;
+TRL demo reaches a reward of 1.6;
+RL&SFT interleaved training gets a reward of 2.65;
+Dynamic sample_keep threshhold pushes the score to 2.85;
+Evolution/3epoch lifts the reward at evolution4 by 0.15;
 Finally, all llms in the group hit reward model upper bound at 2.9x
