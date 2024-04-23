@@ -35,7 +35,7 @@ dumped_positive_review_path = out_put_path + "/positive_reviews"
 reward_model_path = "/DATA/jupyter/personal/lvwerra/distilbert-imdb"
 datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 #training parameter
-num_evolution = 30
+num_evolution = 18
 num_epoch = 3
 num_llms = 3
 max_ppo_steps_per_epoch = 4 # early break a epoch if converge or for tuning efficiency sake
