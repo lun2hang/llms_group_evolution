@@ -283,7 +283,7 @@ for i in range(num_evolution):
                 #log batch_avg_rewards before each ppo step
                 batch_rewards_avg = sum(rewards) / len(rewards)
                 logging.info("evol%d-epoch%d-llms%d Before PPO Step%d,max_reward%f,avg_reward%f " % (i, j, k, num_batch, max_reward, batch_rewards_avg))
-                #accumulate positive reviews over all batchs from k_th llm
+                #accumulate positive reviews over all batchs from k_th llm,always dump the best one
                 batch_positive_review = [review for review, reward in zip(texts, rewards) if (reward > positive_sample_scentiment_threshhold)]
                 positive_reviews.extend(batch_positive_review)
                 # Run PPO step
