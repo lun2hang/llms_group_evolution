@@ -43,7 +43,7 @@ max_eval_batchs_per_epoch = 1 #how many batch data is evaled to text different m
 #positive sample threshhold
 positive_sample_scentiment_threshhold_minimum = 1.20
 positive_sample_scentiment_threshhold_maximum = 2.96
-dynamic_rewards_coefficient = 1.06
+dynamic_rewards_coefficient = 1.05
 positive_sample_scentiment_threshhold = positive_sample_scentiment_threshhold_minimum #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
 
 llms_score = [0.0 for i in range(num_llms)]
