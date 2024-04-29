@@ -17,4 +17,7 @@ After TRL demo reaches a reward of 1.6, it begins to vibrate;
 RL&SFT interleaved training gets a reward of 2.65;
 Dynamic sample_keep threshhold pushes the score to 2.85;
 Evolution mechanism lifts the reward at evolution4 by 0.15,reward can keep rising in 45 epochs
-Finally, all llms in the group hit reward model upper bound at 2.9x
+To avoid the sft fail from no training date caused by a too high dynamic threshhold,we always keep the max reward sample no matter it is above or blew the threshhold
+Finally, all llms in the group beat reward model upper bound at 2.9x with a max reward of 2.99
+
+These parameters will balance the training speed and final scoer: dynamic threshhold coefficient 1.1,threshhold 2.96,epoch 45,ppo steps/epoch 4,num_llms 3,evla_batchs 1
