@@ -35,14 +35,14 @@ dumped_positive_review_path = out_put_path + "/positive_reviews"
 reward_model_path = "/DATA/jupyter/personal/lvwerra/distilbert-imdb"
 datasets_parquet_path = "/DATA/jupyter/personal/imdb/plain_text"
 #training parameter
-num_evolution = 45
+num_evolution = 30
 num_epoch = 3
 num_llms = 3
 max_ppo_steps_per_epoch = 4 # early break a epoch if converge or for tuning efficiency sake
 max_eval_batchs_per_epoch = 1 #how many batch data is evaled to text different model
 #positive sample threshhold
 positive_sample_scentiment_threshhold_minimum = 1.20
-positive_sample_scentiment_threshhold_maximum = 2.96
+positive_sample_scentiment_threshhold_maximum = 2.98
 dynamic_rewards_coefficient = 1.10
 positive_sample_scentiment_threshhold = positive_sample_scentiment_threshhold_minimum #generated review by LLM is kept as training data for sft, if scentiment score above the threshhold 
 
